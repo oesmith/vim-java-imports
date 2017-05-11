@@ -71,6 +71,7 @@ fun! s:JavaSortImport()
                 exe firstLine
                 normal! "aPddG
                 exe search(pattern, 'b')
+                normal! o
                 normal! j
                 let firstLine = line(".")
             endif
@@ -86,7 +87,11 @@ fun! s:JavaSortImport()
                 while match(getline("."), curMatch) >= 0
                     normal! j
                 endwhile
-                normal! O
+                if getline(".") =~ "^$"
+                  normal! j
+                else
+                  normal! O
+                endif
             endwhile
         endif
         if getline(".") =~ "^$"
