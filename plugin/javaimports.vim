@@ -44,60 +44,65 @@ map <silent> <script> <Plug>JavaSortImport :set lz<CR>:call <SID>JavaSortImport(
 map <silent> <script> <Plug>JavaInsertImport :call <SID>JavaInsertSortImport()<CR>
 map <silent> <script> <Plug>JavaInsertPackage :set lz<CR>:call <SID>JavaInsertPackage()<CR>:set nolz<CR>
 
-if !exists('g:sortedPackage')
-    let g:sortedPackage = ["java", "javax", "org", "com"]
+let s:allImportsPattern = '^\s*import\s'
+let s:importPattern = '^\s*import\s\+\w\+\(\.\w\+\)*\s*;.*$'
+let s:importStaticPattern = '^\s*import\s\+static\s\+\w\+\(\.\w\+\)*\s*;.*$'
+
+if !exists('g:javaStaticImportsFirst')
+  let g:javaStaticImportsFirst = 1
 endif
 
-if !exists('g:packageSepDepth')
-    let g:packageSepDepth = 2
-endif
-
-let s:importPattern = '^\s*import\s\+.*;\?$'
 fun! s:JavaSortImport()
-    1
-    if search(s:importPattern) > 0
-        let firstLine = line(".")
-        normal! G
-        exe "" . firstLine . "," . search(s:importPattern, 'b') . "sort u"
-        if getline(".") =~ "^\s*$"
-            delete
-        endif
-        1
-        for name in g:sortedPackage
-            let pattern = '\s*import\s\+' . name . '\..*;'
-            if search(pattern) > 0
-                let @a = ""
-                exe 'g/' . pattern . '/d A'
-                exe firstLine
-                normal! "aPddG
-                exe search(pattern, 'b')
-                normal! o
-                normal! j
-                let firstLine = line(".")
-            endif
-        endfor
-        1
-        if (g:packageSepDepth > 0)
-            while search(s:importPattern, 'W') > 0
-                let curLine = getline(".")
-                let curMatch = substitute(curLine, '\(^\s*import\s\+\(\.\?[^\.]\+\)\{0,' . g:packageSepDepth . '\}\).*', '\1', "")
-                if (curMatch == curLine)
-                    let curMatch = substitute(curMatch, '\(.*\)\..*', '\1', "")
-                endif
-                while match(getline("."), curMatch) >= 0
-                    normal! j
-                endwhile
-                if getline(".") =~ "^$"
-                  normal! j
-                else
-                  normal! O
-                endif
-            endwhile
-        endif
-        if getline(".") =~ "^$"
-            delete
-        endif
-    endif
+  " Collect imports at the top of the file.
+  1
+  let cur = search(s:allImportsPattern)
+  if cur == 0
+    " Give up if there are no imports to sort.
+    return
+  endif
+  while search(s:allImportsPattern, 'W') > 0
+    normal! dd
+    exe cur
+    normal! p
+    let cur = line(".")
+  endwhile
+
+  " Separate normal imports from statics.
+  if g:javaStaticImportsFirst == 1
+    let l:pattern = s:importStaticPattern
+  else
+    let l:pattern = s:importPattern
+  endif
+  1
+  let cur = search(s:allImportsPattern)
+  if cur > 0
+    while search(l:pattern, 'W') > 0
+      normal! dd
+      exe cur
+      normal! Pj
+      let cur = line(".")
+    endwhile
+    normal! o
+  endif
+
+  " Sort groups
+  1
+  if search(s:importPattern) > 0
+    exe line('.') . ',' . search(s:importPattern, 'bw') . "sort u"
+  endif
+  if search(s:importStaticPattern) > 0
+    exe line('.') . ',' . search(s:importStaticPattern, 'bw') . "sort u"
+  endif
+
+  " Remove any additional whitespace beneath imports.
+  1
+  if search(s:allImportsPattern, 'bw') > 0
+    normal! j
+    let cur = line(".")
+    while getline(cur + 1) =~ '^\s*$'
+      normal! dd
+    endwhile
+  endif
 endfun
 
 fun! s:JavaInsertSortImport()
