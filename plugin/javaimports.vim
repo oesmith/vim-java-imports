@@ -55,16 +55,16 @@ endif
 fun! s:JavaSortImport()
   " Collect imports at the top of the file.
   1
-  let cur = search(s:allImportsPattern)
+  let l:cur = search(s:allImportsPattern)
   if cur == 0
     " Give up if there are no imports to sort.
     return
   endif
   while search(s:allImportsPattern, 'W') > 0
     normal! dd
-    exe cur
+    exe l:cur
     normal! p
-    let cur = line(".")
+    let l:cur = line(".")
   endwhile
 
   " Separate normal imports from statics.
@@ -74,31 +74,34 @@ fun! s:JavaSortImport()
     let l:pattern = s:importPattern
   endif
   1
-  let cur = search(s:allImportsPattern)
-  if cur > 0
+  let l:cur = search(s:allImportsPattern)
+  if l:cur > 0
+    let l:orig = l:cur
     while search(l:pattern, 'W') > 0
       normal! dd
-      exe cur
+      exe l:cur
       normal! Pj
-      let cur = line(".")
+      let l:cur = line(".")
     endwhile
-    normal! o
+    if l:cur > l:orig
+      normal! o
+    endif
   endif
 
   " Sort groups
   1
   if search(s:importPattern) > 0
-    exe line('.') . ',' . search(s:importPattern, 'bw') . "sort u"
+    exe line('.') . ',' . search(s:importPattern, 'bw') . 'sort /[^;]\+/ ur'
   endif
   if search(s:importStaticPattern) > 0
-    exe line('.') . ',' . search(s:importStaticPattern, 'bw') . "sort u"
+    exe line('.') . ',' . search(s:importStaticPattern, 'bw') . 'sort /[^;]\+/ ur'
   endif
 
   " Remove any additional whitespace beneath imports.
   1
   if search(s:allImportsPattern, 'bw') > 0
     normal! j
-    let cur = line(".")
+    let l:cur = line(".")
     while getline(cur + 1) =~ '^\s*$'
       normal! dd
     endwhile
@@ -171,7 +174,7 @@ endfun
 
 fun! s:JavaInsertPackage()
     let dir = getcwd() . "/" . expand("%")
-    let dir = substitute(dir, '^.*\/\%(main\|test\)\/\%(java\|kotlin\)\/', '', '')
+    let dir = substitute(dir, '^.*\/\%(java\|javatests\|src\|tst\)\/', '', '')
     let dir = substitute(dir, '\/[^\/]*$', '', '')
     let dir = substitute(dir, '\/', '.', 'g')
     1
